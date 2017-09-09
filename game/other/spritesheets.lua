@@ -19,14 +19,17 @@ function prepareSpritesheet(name, spritew, spriteh)
         end
     end
 
+    local framerate = 12
     ret.getAnim = function()
         return {
-            frame = 1,
+            frame = math.random(xcount),
             row = 1,
             frameCount = xcount,
-            frameTimer = 0,
-            frameDelay = 1/24,
-            update = updateAnim
+            rowCount = ycount,
+            frameTimer = math.random()*(1/framerate),
+            frameDelay = 1/framerate,
+            update = updateAnim,
+            sync = syncAnim
         }
     end
 
@@ -39,6 +42,12 @@ function updateAnim(anim, dt)
         anim.frameTimer = anim.frameTimer - anim.frameDelay
         anim.frame = (anim.frame % anim.frameCount) + 1
     end
+end
+
+function syncAnim(animDest, animRef)
+    animDest.frame = animRef.frame
+    animDest.frameTimer = animRef.frameTimer
+    animDest.row = math.min(animRef.row, animDest.rowCount)
 end
 
 function getquad(sheet, anim)
