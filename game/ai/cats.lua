@@ -16,6 +16,15 @@ local function initSprites()
     Cats.poofHideSheet = prepareSpritesheet("img/sheet_poof_hide.png", 256, 256)
 end
 
+local function repool()
+    Cats.pool = {}
+    for i=1,#Cats.headSheet.sprites do
+        if i ~= Cats.selectedMask then
+            table.insert(Cats.pool, i)
+        end
+    end
+end
+
 function Cats.init()
     Cats.count = 18
 
@@ -35,6 +44,7 @@ function Cats.init()
         end
     end
 
+    repool()
     for i = 1,Cats.count do
         Cats.add(table.remove(positions, math.random(#positions)))
     end
@@ -114,10 +124,16 @@ function Cats.add(pos)
             end
         }
 
-    local head_selection = 0
-    repeat
-        head_selection = math.random(#Cats.headSheet.sprites)
-    until head_selection ~= Cats.selectedMask
+    -- local head_selection = 0
+    -- repeat
+    --     head_selection = math.random(#Cats.headSheet.sprites)
+    -- until head_selection ~= Cats.selectedMask
+
+    local head_selection = 1
+    if not Cats.pool or #Cats.pool == 0 then
+        repool()
+    end
+    head_selection = table.remove(Cats.pool, math.random(#Cats.pool))
 
     cat:setHead(head_selection)
     cat.body_anim.row = math.random(#Cats.bodySheet.sprites)
