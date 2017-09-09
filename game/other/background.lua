@@ -1,7 +1,7 @@
 Bg = Bg or {}
 
 function Bg.init()
-    Bg.img = love.graphics.newImage("img/BG_placeholder.png")
+    Bg.img = love.graphics.newImage("img/bg.png")
 end
 
 function Bg.draw()
