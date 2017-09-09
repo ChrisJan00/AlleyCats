@@ -12,12 +12,12 @@ local function initSprites()
     Cats.maskSheet = prepareSpritesheet("img/sheet_cat_headmasked.png", 128, 128)
     Cats.eyeSheet = prepareSpritesheet("img/sheet_cat_eyes.png", 128, 128)
     Cats.shadowSheet = prepareSpritesheet("img/sheet_cat_shadow.png", 128, 128)
-    Cats.poofRevealSheet = prepareSpritesheet("img/sheet_poof_reveal_placeholder.png", 256, 256)
-    Cats.poofHideSheet = prepareSpritesheet("img/sheet_poof_rhide_placeholder.png", 256, 256)
+    Cats.poofRevealSheet = prepareSpritesheet("img/sheet_poof_reveal.png", 256, 256)
+    Cats.poofHideSheet = prepareSpritesheet("img/sheet_poof_hide.png", 256, 256)
 end
 
 function Cats.init()
-    Cats.count = 3
+    Cats.count = 18
 
     Cats.Timers = Timers.newInstance()
     Cats.list = {}

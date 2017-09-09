@@ -57,7 +57,14 @@ end
 
 function Intro.draw()
     if Intro.revealActive then
-        love.graphics.setColor(255,255,255)
+        local pointer = Vector(love.mouse.getX(), love.mouse.getY())
+
+        if pointer.x > 360 or pointer.y > 240 then
+            love.graphics.setColor(255,255,255)
+        else
+            love.graphics.setColor(255,255,255, 128)
+        end
+
         love.graphics.draw(Intro.revealBg)
 
         love.graphics.draw(Cats.shadowSheet.batch:getTexture(), Cats.shadowSheet.sprites[1][1], 64, 34)
