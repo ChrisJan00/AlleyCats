@@ -9,7 +9,7 @@ end
 local function initSprites()
     Cats.bodySheet = prepareSpritesheet("img/sheet_cat_body.png", 128, 128)
     Cats.headSheet = prepareSpritesheet("img/sheet_cat_heads.png", 128, 128)
-    Cats.maskSheet = prepareSpritesheet("img/sheet_cat_headmasked_placeholder.png", 128, 128)
+    Cats.maskSheet = prepareSpritesheet("img/sheet_cat_headmasked.png", 128, 128)
     Cats.eyeSheet = prepareSpritesheet("img/sheet_cat_eyes.png", 128, 128)
     Cats.shadowSheet = prepareSpritesheet("img/sheet_cat_shadow.png", 128, 128)
     Cats.poofRevealSheet = prepareSpritesheet("img/sheet_poof_reveal_placeholder.png", 256, 256)
@@ -17,12 +17,13 @@ local function initSprites()
 end
 
 function Cats.init()
-    Cats.count = 10
+    Cats.count = 3
 
     Cats.Timers = Timers.newInstance()
     Cats.list = {}
     Cats.hash = SpatialHash(128, 128)
     initSprites()
+    Cats.selectedMask = math.random(#Cats.maskSheet.sprites)
 
     Cats.allMasked = true
 
@@ -37,6 +38,12 @@ function Cats.init()
     for i = 1,Cats.count do
         Cats.add(table.remove(positions, math.random(#positions)))
     end
+
+    local selected_cat = Cats.list[1]
+    selected_cat:setHead(Cats.selectedMask)
+    selected_cat.the_one = true
+    Cats.selectedBody = selected_cat.body_anim.row
+
     recalcHash()
 end
 
@@ -99,14 +106,21 @@ function Cats.add(pos)
         mask_anim = Cats.maskSheet.getAnim(),
         eye_anim = Cats.eyeSheet.getAnim(),
         shadow_anim = Cats.shadowSheet.getAnim(),
-        -- poof
+
+        setHead = function(mycat, selection)
+            mycat.head_anim.row = selection
+            mycat.mask_anim:sync(mycat.head_anim)
+            mycat.eye_anim:sync(mycat.head_anim)
+            end
         }
 
-    cat.head_anim.row = math.random(#Cats.headSheet.sprites)
-    cat.body_anim.row = math.random(#Cats.bodySheet.sprites)
+    local head_selection = 0
+    repeat
+        head_selection = math.random(#Cats.headSheet.sprites)
+    until head_selection ~= Cats.selectedMask
 
-    cat.mask_anim:sync(cat.head_anim)
-    cat.eye_anim:sync(cat.head_anim)
+    cat:setHead(head_selection)
+    cat.body_anim.row = math.random(#Cats.bodySheet.sprites)
     cat.shadow_anim:sync(cat.body_anim)
 
     cat:startWait()
@@ -187,7 +201,7 @@ function Cats.manageMouseClick()
     local firstclickcat = false
     for cat,_ in pairs(Cats.hash:getHashForPoint(spotCenter)) do
         local dist = (spotCenter - cat.pos):mod()
-        if dist < 64 then
+        if dist < 64 and not cat.clicked then
             firstclickcat = cat
             break
         end
@@ -201,6 +215,7 @@ function Cats.manageMouseClick()
     cat.poof_reveal_anim = Cats.poofRevealSheet.getAnim()
     cat.poof_reveal_anim:reset()
     cat.poof_reveal_anim.looping = false
+    cat.clicked = true
 
     local T = cat.poof_reveal_anim:totalTime()
     Cats.Timers.create(T * 0.3)
@@ -210,6 +225,9 @@ function Cats.manageMouseClick()
         :thenWait(T * 0.7)
         :andThen(function()
             cat.poof_reveal_anim = nil
+            if cat.the_one then
+                Intro.triggerEndAnim()
+            end
         end)
         :start()
 
@@ -305,10 +323,10 @@ function Cats.draw()
         aq(Cats.bodySheet, cat.body_anim, cat)
         if not Cats.allMasked or cat.unmasked then
             aq(Cats.headSheet, cat.head_anim, cat)
+            aq(Cats.eyeSheet, cat.eye_anim, cat)
         else
             aq(Cats.maskSheet, cat.mask_anim, cat)
         end
-        aq(Cats.eyeSheet, cat.eye_anim, cat)
 
         if cat.poof_reveal_anim then
             aq2(Cats.poofRevealSheet, cat.poof_reveal_anim, cat)

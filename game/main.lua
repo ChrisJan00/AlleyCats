@@ -33,6 +33,7 @@ end
 function love.draw()
     Bg.draw()
     Cats.draw()
+    Intro.draw()
 end
 
 function love.update(dt)
