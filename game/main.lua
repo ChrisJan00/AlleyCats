@@ -14,6 +14,8 @@ function init()
     love.filesystem.load("utils/spatialhash.lua")()
     love.filesystem.load("utils/timers.lua")()
     love.filesystem.load("ai/cats.lua")()
+    love.filesystem.load("other/background.lua")()
+    love.filesystem.load("other/spritesheets.lua")()
     screenSize = Vector(1280, 720)
 
     if love.graphics.getWidth() ~= screenSize.x or love.graphics.getHeight() ~= screenSize.y then
@@ -22,9 +24,11 @@ function init()
 
     Timers.cancelAll()
     Cats.init()
+    Bg.init()
 end
 
 function love.draw()
+    Bg.draw()
     Cats.draw()
 end
 

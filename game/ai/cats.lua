@@ -6,9 +6,20 @@ local function recalcHash()
     end
 end
 
+local function initSprites()
+    Cats.bodySheet = prepareSpritesheet("img/sheet_cat_body_placeholder.png", 128, 128)
+    Cats.headSheet = prepareSpritesheet("img/sheet_cat_head_placeholder.png", 128, 128)
+    Cats.maskSheet = prepareSpritesheet("img/sheet_cat_headmasked_placeholder.png", 128, 128)
+    -- eyes
+    -- poof reveal
+    -- poof hide
+    -- shadows
+end
+
 function Cats.init()
     Cats.list = {}
     Cats.hash = SpatialHash(128, 128)
+    initSprites()
 
     -- initialize in non-colliding positions
     local positions = {}
@@ -28,15 +39,15 @@ local function getPatience()
     return 0.1 + math.random() * 3
 end
 
-local function getWaitingAnim(cat)
-    cat.anim = Timers.create(getPatience())
+local function getWaitingTimer(cat)
+    cat.move_timer = Timers.create(getPatience())
         :andThen(function()
             cat:startMove()
         end)
         :start()
 end
 
-local function getMovingAnim(cat)
+local function getMovingTimer(cat)
     local d = getPatience() * 2
     local p1,p2,p3 = d*0.1, d*0.8, d*0.1
     local desiredSpeed = 100 + math.random(100)
@@ -44,15 +55,15 @@ local function getMovingAnim(cat)
 
     cat.dir = VectorFromAngle(math.random()*math.pi*2)
     cat.speed = 0
-    cat.anim = Timers.create(p1)
+    cat.move_timer = Timers.create(p1)
     :withUpdate(function(t)
         local dt = t - ot
         ot = t
         cat.speed = cat.speed + desiredSpeed * dt / p1
         end)
     :thenWait(p2)
-    :thenWait(p3)
     :andThen(function() ot = 0 end)
+    :thenWait(p3)
     :withUpdate(function(t)
         local dt = t - ot
         ot = t
@@ -68,18 +79,30 @@ end
 
 
 function Cats.add(pos)
-    local newCat = {
+    local cat = {
         pos = pos:copy(),
         dir = VectorFromAngle(math.random()*math.pi*2),
         speed = 0,
         size = Vector(128,128),
-        startWait = getWaitingAnim,
-        startMove = getMovingAnim
+
+        startWait = getWaitingTimer,
+        startMove = getMovingTimer,
+
+        head_anim = Cats.headSheet.getAnim(),
+        body_anim = Cats.bodySheet.getAnim(),
+        mask_anim = Cats.maskSheet.getAnim(),
+        -- eye_anim = Cats.eyeSheet.getAnim(),
+        -- shadow
+        -- poof
         }
 
-    newCat:startWait()
+    cat.head_anim.row = math.random(#Cats.headSheet.sprites)
+    cat.body_anim.row = math.random(#Cats.bodySheet.sprites)
+    cat.mask_anim.row = math.random(#Cats.maskSheet.sprites)
 
-    table.insert(Cats.list, newCat)
+    cat:startWait()
+
+    table.insert(Cats.list, cat)
 end
 
 
@@ -138,19 +161,30 @@ function Cats.update(dt)
 
         cat.pos = newpos
 
+        -------------- anims
+        cat.head_anim:update(dt)
+        cat.body_anim:update(dt)
+        cat.mask_anim:update(dt)
+
     end
 
     recalcHash()
 end
 
+function wipeSheets()
+    Cats.bodySheet.batch:clear()
+    Cats.headSheet.batch:clear()
+    Cats.maskSheet.batch:clear()
+end
+
+function drawSheets()
+    love.graphics.setColor(255,255,255)
+    love.graphics.draw(Cats.bodySheet.batch)
+    love.graphics.draw(Cats.headSheet.batch)
+    love.graphics.draw(Cats.maskSheet.batch)
+end
 
 function Cats.draw()
-
-    -- test background
-    love.graphics.setColor(0,0,255)
-    love.graphics.rectangle("fill", 0, 0, screenSize.x, screenSize.y)
-
-
     local spotCenter = Vector(love.mouse.getX(), love.mouse.getY())
     local lightRadius = 192
     local stencilFunc = function()
@@ -158,24 +192,29 @@ function Cats.draw()
     end
     love.graphics.stencil(stencilFunc, "replace", 1)
 
+    wipeSheets()
     for _,cat in ipairs(Cats.list) do
-        -- draw outside lightspot
-        love.graphics.setStencilTest("less", 1)
-
-        love.graphics.setColor(255,255,0)
-        love.graphics.rectangle("fill", cat.pos.x, cat.pos.y, cat.size.x, cat.size.y)
-
-        -- draw inside lightspot
-        love.graphics.setStencilTest("greater", 0)
-
-        love.graphics.setColor(255,0,0)
-        love.graphics.rectangle("fill", cat.pos.x, cat.pos.y, cat.size.x, cat.size.y)
+        Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y)
+        Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
+        -- Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y)
     end
 
-    -- darker overlay
     love.graphics.setStencilTest("less", 1)
+    drawSheets()
     love.graphics.setColor(0,0,0,128)
     love.graphics.rectangle("fill", 0, 0, screenSize.x, screenSize.y)
+
+
+    wipeSheets()
+    for _,cat in ipairs(Cats.list) do
+        Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y)
+        -- Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
+        Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y)
+    end
+
+    love.graphics.setStencilTest("greater", 0)
+    drawSheets()
+
 
     -- reset stencil
     love.graphics.setStencilTest()
