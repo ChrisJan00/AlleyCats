@@ -187,9 +187,7 @@ function drawSheets()
     love.graphics.draw(Cats.eyeSheet.batch)
 end
 
-local function aq(sheet, anim, cat)
-    sheet.batch:add(getquad(sheet, anim), cat.pos.x, cat.pos.y, 0, cat.looking_dir, 1, cat.size.x*0.5, cat.size.y*0.5)
-end
+
 
 function Cats.draw()
     local spotCenter = Vector(love.mouse.getX(), love.mouse.getY())
@@ -200,6 +198,20 @@ function Cats.draw()
     love.graphics.stencil(stencilFunc, "replace", 1)
 
     local hs = 64
+
+    local hoveredCats = {}
+    for cat,_ in pairs(Cats.hash:getHashForPoint(spotCenter)) do
+        local dist = (spotCenter - cat.pos):mod()
+        if dist < 64 then
+            hoveredCats[cat] = true
+        end
+    end
+
+    local function aq(sheet, anim, cat)
+        print(hoveredCats[cat])
+        local sc = hoveredCats[cat] == true and 1.2 or 1
+        sheet.batch:add(getquad(sheet, anim), cat.pos.x, cat.pos.y, 0, sc * cat.looking_dir, sc, cat.size.x*0.5, cat.size.y*0.5)
+    end
 
     ------------------------------ OUTSIDE
     wipeSheets()
