@@ -30,7 +30,7 @@ function Cats.init()
         end
     end
 
-    for i = 1,5 do
+    for i = 1,22 do
         Cats.add(table.remove(positions, math.random(#positions)))
     end
     recalcHash()
@@ -108,36 +108,6 @@ function Cats.add(pos)
 end
 
 
-local function oldupdate(dt)
-    for _,cat in ipairs(Cats.list) do
-        -- movement
-        local newpos = cat.pos + dt * cat.dir * cat.speed
-
-        -- stupid bounce
-        if newpos.x < 0 then
-            cat.dir.x = -cat.dir.x
-            newpos.x = cat.pos.x
-        end
-        if newpos.x > screenSize.x - cat.size.x then
-            cat.dir.x = -cat.dir.x
-            newpos.x = cat.pos.x
-        end
-        if newpos.y < 0 then
-            cat.dir.y = -cat.dir.y
-            newpos.y = cat.pos.y
-        end
-        if newpos.y > screenSize.y - cat.size.y then
-            cat.dir.y = -cat.dir.y
-            newpos.y = cat.pos.y
-        end
-
-        cat.pos = newpos
-
-    end
-
-    -- updateHash()
-end
-
 function Cats.update(dt)
     for _,cat in ipairs(Cats.list) do
         -- movement
@@ -162,6 +132,21 @@ function Cats.update(dt)
         end
 
         cat.pos = newpos
+
+        -- slow down if in course to collision
+        local stopDist = cat.size.x * 0.5
+        local catCenter = cat.pos + cat.size * 0.5
+        local catsInFront = Cats.hash:getHashForLine(
+            BoxFromVectors(catCenter, catCenter + cat.dir * stopDist * 2))
+        for other,_ in pairs(catsInFront) do
+            if other ~= cat then
+                local cosang = ((other.pos - cat.pos) * cat.dir)
+                if cosang > 0 then
+                    local dist = (other.pos - cat.pos):mod() + 1
+                    cat.speed = math.min(cat.speed, math.max(0, cat.speed * (dist - stopDist) / stopDist))
+                end
+            end
+        end
 
         -------------- anims
         cat.head_anim:update(dt)

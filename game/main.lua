@@ -11,6 +11,7 @@ end
 function init()
     love.filesystem.load("utils/vector.lua")()
     love.filesystem.load("utils/box.lua")()
+    love.filesystem.load("utils/bresen.lua")()
     love.filesystem.load("utils/spatialhash.lua")()
     love.filesystem.load("utils/timers.lua")()
     love.filesystem.load("ai/cats.lua")()
