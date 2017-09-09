@@ -30,6 +30,7 @@ function Intro.init()
 
 
     Intro.revealBg = love.graphics.newImage("img/bg_find_overlay.png")
+    Intro.canvas = love.graphics.newCanvas(screenSize.x, screenSize.y)
 end
 
 function Intro.update(dt)
@@ -59,17 +60,22 @@ function Intro.draw()
     if Intro.revealActive then
         local pointer = Vector(love.mouse.getX(), love.mouse.getY())
 
+        love.graphics.setCanvas(Intro.canvas)
+            love.graphics.setColor(255,255,255)
+            love.graphics.draw(Intro.revealBg)
+
+            love.graphics.draw(Cats.shadowSheet.batch:getTexture(), Cats.shadowSheet.sprites[1][1], 64, 34)
+            love.graphics.draw(Cats.bodySheet.batch:getTexture(), Cats.bodySheet.sprites[Cats.selectedBody][1], 64, 34)
+            love.graphics.draw(Cats.headSheet.batch:getTexture(), Cats.headSheet.sprites[Cats.selectedMask][1], 64, 34)
+            love.graphics.draw(Cats.eyeSheet.batch:getTexture(), Cats.eyeSheet.sprites[Cats.selectedMask][1], 64, 34)
+        love.graphics.setCanvas()
+
         if pointer.x > 360 or pointer.y > 240 then
             love.graphics.setColor(255,255,255)
         else
             love.graphics.setColor(255,255,255, 128)
         end
+        love.graphics.draw(Intro.canvas)
 
-        love.graphics.draw(Intro.revealBg)
-
-        love.graphics.draw(Cats.shadowSheet.batch:getTexture(), Cats.shadowSheet.sprites[1][1], 64, 34)
-        love.graphics.draw(Cats.bodySheet.batch:getTexture(), Cats.bodySheet.sprites[Cats.selectedBody][1], 64, 34)
-        love.graphics.draw(Cats.headSheet.batch:getTexture(), Cats.headSheet.sprites[Cats.selectedMask][1], 64, 34)
-        love.graphics.draw(Cats.eyeSheet.batch:getTexture(), Cats.eyeSheet.sprites[Cats.selectedMask][1], 64, 34)
     end
 end
