@@ -11,11 +11,9 @@ local function initSprites()
     Cats.headSheet = prepareSpritesheet("img/sheet_cat_heads.png", 128, 128)
     Cats.maskSheet = prepareSpritesheet("img/sheet_cat_headmasked_placeholder.png", 128, 128)
     Cats.eyeSheet = prepareSpritesheet("img/sheet_cat_eyes.png", 128, 128)
-    -- eyes
-    -- poof reveal
-    -- poof hide
-    -- shadows
     Cats.shadowSheet = prepareSpritesheet("img/sheet_cat_shadow.png", 128, 128)
+    Cats.poofRevealSheet = prepareSpritesheet("img/sheet_poof_reveal_placeholder.png", 256, 256)
+    Cats.poofHideSheet = prepareSpritesheet("img/sheet_poof_rhide_placeholder.png", 256, 256)
 end
 
 function Cats.init()
@@ -158,6 +156,9 @@ function Cats.update(dt)
             end
         end
 
+        -- look dir
+        cat.looking_dir = cat.dir.x < 0 and 1 or -1
+
         -------------- anims
         cat.head_anim:update(dt)
         cat.mask_anim:update(dt)
@@ -167,9 +168,73 @@ function Cats.update(dt)
             cat.shadow_anim:update(dt)
             cat.body_anim:update(dt)
         end
+
+        if cat.poof_reveal_anim then
+            cat.poof_reveal_anim:update(dt)
+        end
+
+        if cat.poof_hide_anim then
+            cat.poof_hide_anim:update(dt)
+        end
     end
 
     recalcHash()
+end
+
+function Cats.manageMouseClick()
+    local spotCenter = Vector(love.mouse.getX(), love.mouse.getY())
+
+    local firstclickcat = false
+    for cat,_ in pairs(Cats.hash:getHashForPoint(spotCenter)) do
+        local dist = (spotCenter - cat.pos):mod()
+        if dist < 64 then
+            firstclickcat = cat
+            break
+        end
+    end
+
+    if not firstclickcat then
+        return
+    end
+
+    local cat = firstclickcat
+    cat.poof_reveal_anim = Cats.poofRevealSheet.getAnim()
+    cat.poof_reveal_anim:reset()
+    cat.poof_reveal_anim.looping = false
+
+    local T = cat.poof_reveal_anim:totalTime()
+    Cats.Timers.create(T * 0.3)
+        :andThen(function()
+            cat.unmasked = true
+        end)
+        :thenWait(T * 0.7)
+        :andThen(function()
+            cat.poof_reveal_anim = nil
+        end)
+        :start()
+
+end
+
+function Cats.launchMasks()
+    Cats.allMasked = false
+    for _,cat in ipairs(Cats.list) do
+        cat.poof_hide_anim = Cats.poofHideSheet.getAnim()
+        cat.poof_hide_anim:reset()
+        cat.poof_hide_anim.looping = false
+
+        local T = cat.poof_hide_anim:totalTime()
+        Cats.Timers.create(T)
+            :andThen(function()
+                cat.poof_hide_anim = nil
+                end)
+            :start()
+    end
+
+    Cats.Timers.create(Cats.poofHideSheet.getAnim():totalTime() * 0.3)
+        :andThen(function()
+            Cats.allMasked = true
+        end)
+        :start()
 end
 
 function wipeSheets()
@@ -178,6 +243,8 @@ function wipeSheets()
     Cats.maskSheet.batch:clear()
     Cats.eyeSheet.batch:clear()
     Cats.shadowSheet.batch:clear()
+    Cats.poofRevealSheet.batch:clear()
+    Cats.poofHideSheet.batch:clear()
 end
 
 function drawSheets()
@@ -187,6 +254,8 @@ function drawSheets()
     love.graphics.draw(Cats.headSheet.batch)
     love.graphics.draw(Cats.maskSheet.batch)
     love.graphics.draw(Cats.eyeSheet.batch)
+    love.graphics.draw(Cats.poofRevealSheet.batch)
+    love.graphics.draw(Cats.poofHideSheet.batch)
 end
 
 
@@ -209,9 +278,12 @@ function Cats.draw()
     end
 
     local function aq(sheet, anim, cat)
-        print(hoveredCats[cat])
         local sc = hoveredCats[cat] == true and 1.2 or 1
         sheet.batch:add(getquad(sheet, anim), cat.pos.x, cat.pos.y, 0, sc * cat.looking_dir, sc, cat.size.x*0.5, cat.size.y*0.5)
+    end
+
+        local function aq2(sheet, anim, cat)
+        sheet.batch:add(getquad(sheet, anim), cat.pos.x, cat.pos.y, 0, cat.looking_dir, 1, cat.size.x, cat.size.y)
     end
 
     ------------------------------ OUTSIDE
@@ -237,6 +309,13 @@ function Cats.draw()
             aq(Cats.maskSheet, cat.mask_anim, cat)
         end
         aq(Cats.eyeSheet, cat.eye_anim, cat)
+
+        if cat.poof_reveal_anim then
+            aq2(Cats.poofRevealSheet, cat.poof_reveal_anim, cat)
+        end
+        if cat.poof_hide_anim then
+            aq2(Cats.poofHideSheet, cat.poof_hide_anim, cat)
+        end
     end
 
     love.graphics.setStencilTest("greater", 0)

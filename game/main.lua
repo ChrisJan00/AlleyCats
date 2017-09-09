@@ -47,3 +47,7 @@ function love.keypressed(key)
         return
     end
 end
+
+function love.mousepressed(x,y)
+    Cats.manageMouseClick()
+end

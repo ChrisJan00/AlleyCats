@@ -29,7 +29,15 @@ function prepareSpritesheet(name, spritew, spriteh)
             frameTimer = math.random()*(1/framerate),
             frameDelay = 1/framerate,
             update = updateAnim,
-            sync = syncAnim
+            sync = syncAnim,
+            reset = function(anim)
+                anim.frame = 1
+                anim.frameTimer = 0
+            end,
+            looping = true,
+            totalTime = function(anim)
+                return anim.frameCount * anim.frameDelay
+            end,
         }
     end
 
@@ -40,7 +48,11 @@ function updateAnim(anim, dt)
     anim.frameTimer = anim.frameTimer + dt
     while anim.frameTimer > anim.frameDelay do
         anim.frameTimer = anim.frameTimer - anim.frameDelay
-        anim.frame = (anim.frame % anim.frameCount) + 1
+        if anim.looping then
+            anim.frame = (anim.frame % anim.frameCount) + 1
+        else
+            anim.frame = math.min(anim.frame + 1, anim.frameCount)
+        end
     end
 end
 

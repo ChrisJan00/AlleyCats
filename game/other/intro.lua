@@ -8,11 +8,21 @@ function Intro.init()
 
     Intro.Timers = Timers.newInstance()
 
-    local flashDuration = 3
-    Intro.Timers.create(flashDuration)
+    local preFlashDuration = 3
+    local flashDuration = 2
+    Intro.Timers.create(preFlashDuration)
+        :thenWait(flashDuration)
+        :prepare(function()
+            -- Cats.allMasked = false
+            Cats.launchMasks()
+        end)
         :withUpdate(function(t)
             Intro.flashRadius = (Intro.endRadius - Intro.startRadius) * t / flashDuration + Intro.startRadius
-        end):start()
+        end)
+        :andThen(function()
+            -- Cats.allMasked = true
+        end)
+        :start()
 end
 
 function Intro.update(dt)
