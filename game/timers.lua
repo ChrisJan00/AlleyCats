@@ -1,0 +1,560 @@
+
+-- timers_love: a small library for timed events
+
+-- zlib license
+-- Copyright (c) 2016 Christiaan Janssen
+
+-- This software is provided 'as-is', without any express or implied
+-- warranty. In no event will the authors be held liable for any damages
+-- arising from the use of this software.
+
+-- Permission is granted to anyone to use this software for any purpose,
+-- including commercial applications, and to alter it and redistribute it
+-- freely, subject to the following restrictions:
+
+-- 1. The origin of this software must not be misrepresented; you must not
+--    claim that you wrote the original software. If you use this software
+--    in a product, an acknowledgement in the product documentation would be
+--    appreciated but is not required.
+-- 2. Altered source versions must be plainly marked as such, and must not be
+--    misrepresented as being the original software.
+-- 3. This notice may not be removed or altered from any source distribution.
+
+-- begin local
+local function _newInstance()
+    local Timers
+
+    local _rebuild_draw_list, _append_internal_data, _purge, _local_update
+    local _timers_busy = false
+    local _delayed_commands = {}
+
+    local function _bubble_origin(timer)
+        -- recurse through tree until we find an origin that points to itself
+        -- note: assuming that origin will always end up being a self-reference
+        -- no nils, no crossed-references
+        while timer.origin ~= timer.origin.origin do
+            timer.origin = timer.origin.origin
+        end
+        return timer.origin
+    end
+
+    local function _clone_callbacks(timer)
+        local copy = Timers.create(timer.timeout)
+        copy.init = timer.init
+        copy.update = timer.update
+        copy.callback = timer.callback
+        copy.draw = timer.draw
+        return copy
+    end
+
+    local function _clone_self_new_orig(timer)
+        local copy = _clone_callbacks(timer)
+        copy.origin.data = timer.origin.data
+        copy.origin._data = timer.origin._data
+        return copy
+    end
+
+    local function _clone_timer(timer)
+        local copy = _clone_callbacks(timer)
+        copy.origin = timer.origin
+        return copy
+    end
+
+    local function _append_internal_data(timer, _data)
+        _bubble_origin(timer)
+        if not timer.origin._data then
+            timer.origin._data = _data
+        else
+            -- append
+            for k,v in pairs(_data) do
+                timer.origin._data[k] = v
+            end
+        end
+        return timer
+    end
+
+    local Timer_proto = {
+        -- change timeout value
+        withTimeout = function(self, t)
+            self.timeout = t
+            return self
+        end,
+
+
+        -- attaching callbacks to timers
+        prepare = function(self, pre)
+            if self.init then
+                local func = self.init
+                self.init = function(timer)
+                    func(timer)
+                    pre(timer)
+                end
+            else
+                self.init = pre
+            end
+            return self
+        end,
+
+        andThen = function(self, cb)
+            if self.callback then
+                local func = self.callback
+                self.callback = function(timer)
+                    func(timer)
+                    cb(timer)
+                end
+            else
+                self.callback = cb
+            end
+            return self
+        end,
+
+        withUpdate = function(self, upd)
+            if self.update then
+                local func = self.update
+                self.update = function(elapsed, timer)
+                    func(elapsed, timer)
+                    upd(elapsed, timer)
+                end
+            else
+                self.update = upd
+            end
+            return self
+        end,
+
+        withDraw = function(self, draw, draworder)
+            if self.draw then
+                local func = self.draw
+                self.draw = function(timer)
+                    func(timer)
+                    draw(timer)
+                end
+            else
+                self.draw = draw
+            end
+
+            self:withDrawOrder(draworder or 0)
+
+            return self
+        end,
+
+        withDrawOrder = function(self, draworder)
+            _bubble_origin(self)
+            _append_internal_data(self, {_draworder = draworder})
+            self.origin._dirty = true
+            return self
+        end,
+
+        finally = function(self, fin)
+            _bubble_origin(self)
+            if fin ~= self.origin.final then
+                if self.origin.final then
+                    local func = self.origin.final
+                    self.origin.final = function(cancelled, timer)
+                        func(cancelled, timer)
+                        fin(cancelled, timer)
+                    end
+                else
+                    self.origin.final = function(cancelled,timer)
+                        fin(cancelled, timer)
+                    end
+                end
+            end
+            return self
+        end,
+
+        -- append timers
+        hang = function(self, newTimer)
+            _bubble_origin(self)
+            _bubble_origin(newTimer)
+            _append_internal_data(self, newTimer.origin._data)
+            if newTimer.origin.data then
+                if self.origin.data then
+                    -- if I already had data, append new one
+                    self:appendData(newTimer.origin.data)
+                else
+                    -- else just pass the reference
+                    self:withData(newTimer.origin.data)
+                end
+            end
+            -- pass the finally clause
+            if newTimer.origin.final then
+                self:finally(newTimer.origin.final)
+            end
+
+            newTimer.origin = self.origin
+            self:andThen(function(timer)
+                local launched = _clone_callbacks(newTimer)
+                launched.origin = _bubble_origin(timer)
+                if launched.init then launched:init() end
+                if launched.timeout < 0 then
+                    table.insert(Timers.immediateList, launched)
+                else
+                    table.insert(Timers.list, launched)
+                    launched.origin._running = launched.origin._running + 1
+                    _rebuild_draw_list()
+                end
+            end)
+            return newTimer
+        end,
+
+        append = function(self, newTimer)
+            self:hang(newTimer:ref())
+            newTimer.origin = _bubble_origin(self)
+            return newTimer
+        end,
+
+        thenWait = function(self, T)
+            local newTimer = Timers.create(T)
+            return self:hang(newTimer)
+        end,
+
+        -- looping functions
+        thenRestart = function(self)
+            self:hang(_bubble_origin(self))
+            return self
+        end,
+
+        thenRestartLast = function(self)
+            self:hang(self)
+            return self
+        end,
+
+        loopIf = function(self, cond)
+            _bubble_origin(self)
+
+            local tail = Timers.create()
+            local exit_loop = _clone_timer(self)
+            exit_loop:hang(tail)
+
+            self:hang(self.origin)
+            local recurse = self.callback
+            self.callback = function(timer)
+                if cond() then
+                    recurse(timer)
+                else
+                    exit_loop.callback(timer)
+                end
+            end
+
+            return tail
+        end,
+
+        loopNTimes = function(self, times)
+            if times <= 1 then
+                return self
+            end
+
+            local _loopCount = times
+            local _loopCond = function()
+                _loopCount = _loopCount - 1
+                return _loopCount > 0
+            end
+            return self:loopIf(_loopCond)
+        end,
+
+        -- observe (loop and without)
+        loopObserve = function(self, tree)
+            if tree ~= _bubble_origin(self) then
+                local observed = _bubble_origin(tree)
+                return self:loopIf(function() return observed:isRunning() end)
+            end
+            return self
+        end,
+
+        observe = function(self, tree)
+            if tree ~= _bubble_origin(self) then
+                self.observed = tree and _bubble_origin(tree) or nil
+            end
+            return self
+        end,
+
+        -- run control
+        start = function(self)
+            if _timers_busy then
+                -- mark as started (will be overwritten at actual start)
+                self.origin._running = self.origin._running + 1
+                table.insert(_delayed_commands, function() self:start() end)
+                return self
+            end
+            _bubble_origin(self)
+            if self.origin._running > 0 then
+                self.origin._running = 0
+                _purge()
+            end
+            self.origin.elapsed = 0
+            if self.origin.init then self.origin:init() end
+            if self.origin.timeout<0 then
+                table.insert(Timers.immediateList, self.origin)
+            else
+                table.insert(Timers.list, self.origin)
+                self.origin._running = 1
+                _rebuild_draw_list()
+            end
+            return self
+        end,
+
+        cancel = function(self)
+            _bubble_origin(self)
+            local was_running = self.origin._running > 0
+            self.origin._running = 0
+            if _timers_busy then
+                table.insert(_delayed_commands, function() self:cancel() end)
+                return self
+            end
+            if was_running and self.origin.final then
+                self.origin.final(true, self)
+            end
+            _purge()
+            _rebuild_draw_list()
+            return self
+        end,
+
+        pause = function(self)
+            _bubble_origin(self).paused = true
+            return self
+        end,
+
+        continue = function(self)
+            _bubble_origin(self).paused = false
+            return self
+        end,
+
+        isPaused = function(self)
+            return _bubble_origin(self).paused or false
+        end,
+
+        isRunning = function(self)
+            return _bubble_origin(self)._running > 0
+        end,
+
+        -- data
+        withData = function(self, data)
+            _bubble_origin(self).data = data
+            return self
+        end,
+
+        appendData = function(self, data)
+            _bubble_origin(self)
+            self.origin.data = self.origin.data or {}
+            -- note: duplicated keys will be overwritten, also indices in array part
+            for k,v in pairs(data) do
+                self.origin.data[k] = v
+            end
+            return self
+        end,
+
+        getData = function(self)
+            return _bubble_origin(self).data
+        end,
+
+        -- fork, reference
+        fork = function(self)
+            _bubble_origin(self)
+            return _clone_self_new_orig(self.origin)
+        end,
+
+        ref = function(self)
+            return _bubble_origin(self)
+        end
+    }
+
+    _rebuild_draw_list = function()
+        Timers.drawList = {}
+        for i=1,#Timers.list do
+            local t = Timers.list[i]
+            if t.draw and _bubble_origin(t)._running > 0 then
+                -- overwrite origin for speeding up the sorting (so that it doesn't need to check reference validity all the time)
+                table.insert(Timers.drawList, t)
+            end
+        end
+
+        table.sort(Timers.drawList,
+            function(a,b) return a.origin._data._draworder < b.origin._data._draworder end)
+    end
+
+    _purge = function()
+        if _timers_busy then return end
+        for i=#Timers.list,1,-1 do
+            if _bubble_origin(Timers.list[i])._running == 0 then
+                table.remove(Timers.list, i)
+            end
+        end
+    end
+
+    -- reverse order because new timers spawned by callbacks
+    -- are appended to the list and should not be executed in this iteration
+    _local_update = function(dt, ndx_from, ndx_to, _dirty, _dead_timer_indices)
+        local _new_launches = {}
+        local i
+        for i=ndx_to,ndx_from,-1 do
+            local t = Timers.list[i]
+            _bubble_origin(t)
+            if t.origin._running == 0 then
+                table.insert(_dead_timer_indices, i)
+            elseif not t.origin.paused then
+                t.elapsed = t.elapsed + dt
+                if t.update then
+                    t.update(t.elapsed, t)
+                end
+
+                if t.observed then
+                    -- artificially inflate obersvers's life
+                    t.timeout = t.elapsed + t.observed.origin._running
+                end
+
+                if t.elapsed >= t.timeout then
+                    local timer_count = #Timers.list
+                    t.origin._running = t.origin._running - 1
+                    if t.callback then
+                        t.callback(t)
+                    end
+                    table.insert(_dead_timer_indices, i)
+                    _dirty = true
+                    if #Timers.list > timer_count then
+                        table.insert(_new_launches, {
+                            dt = t.elapsed - t.timeout,
+                            ndx_from = timer_count+1,
+                            ndx_to = #Timers.list
+                        })
+                    end
+                end
+            end
+
+            if t.origin._dirty then
+                t.origin._dirty = nil
+                _dirty = true
+            end
+        end
+
+        return _dirty, _dead_timer_indices, _new_launches
+    end
+
+    Timers = {
+        -- create a new timer object
+        create = function(timeout, orself)
+            if timeout == Timers then timeout = orself end
+            local newTimer = {
+                elapsed = 0 ,
+                timeout = timeout or 0,
+            }
+            setmetatable(newTimer, { __index = function(table, key) return Timer_proto[key] end })
+            newTimer.origin = newTimer
+            newTimer.origin._running = 0
+            return newTimer
+        end,
+
+        -- general pause all
+        pauseAll = function()
+            Timers.paused = true
+        end,
+
+        -- general continue all
+        continueAll = function()
+            Timers.paused = false
+        end,
+
+        -- general cancel all
+        cancelAll = function()
+            for i=1,#Timers.list do
+                local t = Timers.list[i]
+                _bubble_origin(t)._running = 0
+                if t.final then t.final(true, t) end
+            end
+            Timers.list = {}
+            _rebuild_draw_list()
+        end,
+
+
+        -- general update (must be called from love.update)
+        update = function(dt, orself)
+            if dt == Timers then dt = orself end
+            if Timers.paused then return end
+            _timers_busy = true
+
+            local _dead_timer_indices = {}
+            local _dirty = false
+            local _new_launches = {}
+            local _iteration_count = 20
+
+            _dirty, _dead_timer_indices, _new_launches = _local_update(dt, 1, #Timers.list, _dirty, _dead_timer_indices)
+
+            while #_new_launches > 0 and _iteration_count > 0 do
+                for _,new_launch in ipairs(_new_launches) do
+                    _dirty, _dead_timer_indices, _new_launches = _local_update(
+                        new_launch.dt,
+                        new_launch.ndx_from,
+                        new_launch.ndx_to,
+                        _dirty,
+                        _dead_timer_indices)
+                end
+                if Timers.prevent_infinite_loops then
+                    _iteration_count = _iteration_count - 1
+                end
+            end
+
+            if #_dead_timer_indices > 0 then
+                table.sort(_dead_timer_indices)
+                local _resolved_trees = {}
+                for i=#_dead_timer_indices,1,-1 do
+                    local t = table.remove(Timers.list, _dead_timer_indices[i])
+                    _bubble_origin(t)
+                    if t.origin.final
+                        and t.origin._running == 0
+                        and not _resolved_trees[t.origin] then
+                            _resolved_trees[t.origin] = true
+                            t.origin.final(false, t)
+                    end
+                end
+            end
+
+            if _dirty then
+                _rebuild_draw_list()
+            end
+            _timers_busy = false
+
+            if (#_delayed_commands > 0) then
+                for i=1,#_delayed_commands do
+                    _delayed_commands[i]()
+                end
+                _delayed_commands = {}
+            end
+        end,
+
+        draw = function()
+            for i=1,#Timers.drawList do
+                local t = Timers.drawList[i]
+                if t.draw then
+                    t.draw(t)
+                end
+            end
+        end,
+
+        newInstance = _newInstance
+    }
+
+    -- convenience function
+    Timers.setTimeout = function(func, time, orself)
+        if func == Timers then
+            func = time
+            time = orself
+        end
+        return Timers.create(time):andThen(func):start()
+    end
+
+
+    local _init = function()
+        Timers.list = {}
+        Timers.drawList = {}
+        Timers.immediateList = {}
+        Timers.paused = false
+        Timers.prevent_infinite_loops = true
+        return Timers
+    end
+
+    return _init()
+
+end
+
+-- global default
+Timers = _newInstance()
+return Timers
