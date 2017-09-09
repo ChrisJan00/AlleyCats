@@ -26,11 +26,11 @@ function Cats.init()
     local positions = {}
     for xx = 0,screenSize.x/128 - 1 do
         for yy = 0,screenSize.y/128 - 1 do
-            table.insert(positions, Vector(xx*128, yy*128))
+            table.insert(positions, Vector(xx*128 + 64, yy*128 + 64))
         end
     end
 
-    for i = 1,22 do
+    for i = 1,5 do
         Cats.add(table.remove(positions, math.random(#positions)))
     end
     recalcHash()
@@ -85,6 +85,7 @@ function Cats.add(pos)
         dir = VectorFromAngle(math.random()*math.pi*2),
         speed = 0,
         size = Vector(128,128),
+        looking_dir = math.random(2) - 1,
 
         startWait = getWaitingTimer,
         startMove = getMovingTimer,
@@ -114,19 +115,19 @@ function Cats.update(dt)
         local newpos = cat.pos + dt * cat.dir * cat.speed
 
         -- stupid bounce
-        if newpos.x < 0 then
+        if newpos.x < cat.size.x * 0.5 then
             cat.dir.x = -cat.dir.x
             newpos.x = cat.pos.x
         end
-        if newpos.x > screenSize.x - cat.size.x then
+        if newpos.x > screenSize.x - cat.size.x * 0.5  then
             cat.dir.x = -cat.dir.x
             newpos.x = cat.pos.x
         end
-        if newpos.y < 0 then
+        if newpos.y < cat.size.y * 0.5 then
             cat.dir.y = -cat.dir.y
             newpos.y = cat.pos.y
         end
-        if newpos.y > screenSize.y - cat.size.y then
+        if newpos.y > screenSize.y - cat.size.y * 0.5 then
             cat.dir.y = -cat.dir.y
             newpos.y = cat.pos.y
         end
@@ -135,9 +136,8 @@ function Cats.update(dt)
 
         -- slow down if in course to collision
         local stopDist = cat.size.x * 0.5
-        local catCenter = cat.pos + cat.size * 0.5
         local catsInFront = Cats.hash:getHashForLine(
-            BoxFromVectors(catCenter, catCenter + cat.dir * stopDist * 2))
+            BoxFromVectors(cat.pos, cat.pos + cat.dir * stopDist * 2))
         for other,_ in pairs(catsInFront) do
             if other ~= cat then
                 local cosang = ((other.pos - cat.pos) * cat.dir)
@@ -182,13 +182,19 @@ function Cats.draw()
     end
     love.graphics.stencil(stencilFunc, "replace", 1)
 
+    local hs = 64
+
     ------------------------------ OUTSIDE
     wipeSheets()
     for _,cat in ipairs(Cats.list) do
-        -- Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y)
-        -- Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
-        -- Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y)
-        Cats.eyeSheet.batch:add(getquad(Cats.eyeSheet, cat.eye_anim), cat.pos.x, cat.pos.y)
+        if cat.looking_dir > 0 then
+            -- Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y)
+            -- Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
+            -- Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y)
+            Cats.eyeSheet.batch:add(getquad(Cats.eyeSheet, cat.eye_anim), cat.pos.x, cat.pos.y, 0, 1, 1, hs, hs)
+        else
+            Cats.eyeSheet.batch:add(getquad(Cats.eyeSheet, cat.eye_anim), cat.pos.x, cat.pos.y, 0, -1, 1, hs, hs)
+        end
     end
 
     love.graphics.setStencilTest("less", 1)
@@ -201,10 +207,16 @@ function Cats.draw()
     ------------------------------ INSIDE
     wipeSheets()
     for _,cat in ipairs(Cats.list) do
-        Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y)
-        -- Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
-        Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y)
-        -- Cats.eyeSheet.batch:add(getquad(Cats.eyeSheet, cat.eye_anim), cat.pos.x, cat.pos.y)
+        if cat.looking_dir > 0 then
+            Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y, 0, 1, 1, hs, hs)
+            -- Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
+            Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y, 0, 1, 1, hs, hs)
+            -- Cats.eyeSheet.batch:add(getquad(Cats.eyeSheet, cat.eye_anim), cat.pos.x, cat.pos.y)
+        else
+            Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y, 0, -1, 1, hs, hs)
+            -- Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
+            Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y, 0, -1, 1, hs, hs)
+        end
     end
 
     love.graphics.setStencilTest("greater", 0)
