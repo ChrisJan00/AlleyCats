@@ -10,6 +10,7 @@ local function initSprites()
     Cats.bodySheet = prepareSpritesheet("img/sheet_cat_body_placeholder.png", 128, 128)
     Cats.headSheet = prepareSpritesheet("img/sheet_cat_head_placeholder.png", 128, 128)
     Cats.maskSheet = prepareSpritesheet("img/sheet_cat_headmasked_placeholder.png", 128, 128)
+    Cats.eyeSheet = prepareSpritesheet("img/sheet_cat_eyes_placeholder.png", 128, 128)
     -- eyes
     -- poof reveal
     -- poof hide
@@ -91,14 +92,15 @@ function Cats.add(pos)
         head_anim = Cats.headSheet.getAnim(),
         body_anim = Cats.bodySheet.getAnim(),
         mask_anim = Cats.maskSheet.getAnim(),
-        -- eye_anim = Cats.eyeSheet.getAnim(),
+        eye_anim = Cats.eyeSheet.getAnim(),
         -- shadow
         -- poof
         }
 
     cat.head_anim.row = math.random(#Cats.headSheet.sprites)
     cat.body_anim.row = math.random(#Cats.bodySheet.sprites)
-    cat.mask_anim.row = math.random(#Cats.maskSheet.sprites)
+    cat.mask_anim.row = cat.head_anim.row
+    cat.eye_anim.row = cat.head_anim.row
 
     cat:startWait()
 
@@ -165,6 +167,7 @@ function Cats.update(dt)
         cat.head_anim:update(dt)
         cat.body_anim:update(dt)
         cat.mask_anim:update(dt)
+        cat.eye_anim:update(dt)
 
     end
 
@@ -175,6 +178,7 @@ function wipeSheets()
     Cats.bodySheet.batch:clear()
     Cats.headSheet.batch:clear()
     Cats.maskSheet.batch:clear()
+    Cats.eyeSheet.batch:clear()
 end
 
 function drawSheets()
@@ -182,6 +186,7 @@ function drawSheets()
     love.graphics.draw(Cats.bodySheet.batch)
     love.graphics.draw(Cats.headSheet.batch)
     love.graphics.draw(Cats.maskSheet.batch)
+    love.graphics.draw(Cats.eyeSheet.batch)
 end
 
 function Cats.draw()
@@ -192,24 +197,29 @@ function Cats.draw()
     end
     love.graphics.stencil(stencilFunc, "replace", 1)
 
+    ------------------------------ OUTSIDE
     wipeSheets()
     for _,cat in ipairs(Cats.list) do
-        Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y)
-        Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
+        -- Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y)
+        -- Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
         -- Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y)
+        Cats.eyeSheet.batch:add(getquad(Cats.eyeSheet, cat.eye_anim), cat.pos.x, cat.pos.y)
     end
 
     love.graphics.setStencilTest("less", 1)
-    drawSheets()
-    love.graphics.setColor(0,0,0,128)
+    love.graphics.setColor(89, 89, 102)
     love.graphics.rectangle("fill", 0, 0, screenSize.x, screenSize.y)
+    drawSheets()
+    -- love.graphics.setColor(0,0,0,128)
+    -- love.graphics.rectangle("fill", 0, 0, screenSize.x, screenSize.y)
 
-
+    ------------------------------ INSIDE
     wipeSheets()
     for _,cat in ipairs(Cats.list) do
         Cats.bodySheet.batch:add(getquad(Cats.bodySheet, cat.body_anim), cat.pos.x, cat.pos.y)
         -- Cats.headSheet.batch:add(getquad(Cats.headSheet, cat.head_anim), cat.pos.x, cat.pos.y)
         Cats.maskSheet.batch:add(getquad(Cats.maskSheet, cat.mask_anim), cat.pos.x, cat.pos.y)
+        -- Cats.eyeSheet.batch:add(getquad(Cats.eyeSheet, cat.eye_anim), cat.pos.x, cat.pos.y)
     end
 
     love.graphics.setStencilTest("greater", 0)
