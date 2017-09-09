@@ -16,6 +16,7 @@ function init()
     love.filesystem.load("utils/timers.lua")()
     love.filesystem.load("ai/cats.lua")()
     love.filesystem.load("other/background.lua")()
+    love.filesystem.load("other/intro.lua")()
     love.filesystem.load("other/spritesheets.lua")()
     screenSize = Vector(1280, 720)
 
@@ -26,6 +27,7 @@ function init()
     Timers.cancelAll()
     Cats.init()
     Bg.init()
+    Intro.init()
 end
 
 function love.draw()
@@ -35,6 +37,7 @@ end
 
 function love.update(dt)
     Timers.update(dt)
+    Intro.update(dt)
     Cats.update(dt)
 end
 

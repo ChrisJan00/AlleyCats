@@ -26,6 +26,8 @@ function Cats.init()
     Cats.hash = SpatialHash(128, 128)
     initSprites()
 
+    Cats.allMasked = true
+
     -- initialize in non-colliding positions
     local positions = {}
     for xx = 0,screenSize.x/128 - 1 do
@@ -191,9 +193,8 @@ end
 
 function Cats.draw()
     local spotCenter = Vector(love.mouse.getX(), love.mouse.getY())
-    local lightRadius = 192
     local stencilFunc = function()
-        love.graphics.circle("fill", spotCenter.x, spotCenter.y, lightRadius, lightRadius/2)
+        love.graphics.circle("fill", spotCenter.x, spotCenter.y, Intro.flashRadius, Intro.flashRadius/2)
     end
     love.graphics.stencil(stencilFunc, "replace", 1)
 
@@ -216,9 +217,6 @@ function Cats.draw()
     ------------------------------ OUTSIDE
     wipeSheets()
     for _,cat in ipairs(Cats.list) do
-        -- aq(Cats.bodySheet, cat.body_anim, cat)
-        -- aq(Cats.headSheet, cat.head_anim, cat)
-        -- aq(Cats.maskSheet, cat.mask_anim, cat)
         aq(Cats.eyeSheet, cat.eye_anim, cat)
     end
 
@@ -233,8 +231,11 @@ function Cats.draw()
     for _,cat in ipairs(Cats.list) do
         aq(Cats.shadowSheet, cat.shadow_anim, cat)
         aq(Cats.bodySheet, cat.body_anim, cat)
-        aq(Cats.headSheet, cat.head_anim, cat)
-        -- aq(Cats.maskSheet, cat.mask_anim, cat)
+        if not Cats.allMasked or cat.unmasked then
+            aq(Cats.headSheet, cat.head_anim, cat)
+        else
+            aq(Cats.maskSheet, cat.mask_anim, cat)
+        end
         aq(Cats.eyeSheet, cat.eye_anim, cat)
     end
 
