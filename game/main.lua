@@ -12,6 +12,7 @@ function init()
     love.filesystem.load("utils/vector.lua")()
     love.filesystem.load("utils/box.lua")()
     love.filesystem.load("utils/spatialhash.lua")()
+    love.filesystem.load("utils/timers.lua")()
     love.filesystem.load("ai/cats.lua")()
     screenSize = Vector(1280, 720)
 
@@ -19,6 +20,7 @@ function init()
         love.window.setMode(screenSize.x, screenSize.y)
     end
 
+    Timers.cancelAll()
     Cats.init()
 end
 
@@ -27,6 +29,7 @@ function love.draw()
 end
 
 function love.update(dt)
+    Timers.update(dt)
     Cats.update(dt)
 end
 
