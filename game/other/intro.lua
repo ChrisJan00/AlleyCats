@@ -8,6 +8,7 @@ function Intro.init()
 
     Intro.Timers = Timers.newInstance()
     Intro.revealActive = false
+    Intro.fixedPointer = Vector(love.mouse.getX(), love.mouse.getY())
 
     local preFlashDuration = 3
     local midFlashDuration = 1
@@ -18,6 +19,7 @@ function Intro.init()
         :prepare(function()
             -- Cats.allMasked = false
             Cats.launchMasks()
+            Intro.fixedPointer = false
         end)
         :thenWait(flashDuration)
         :withUpdate(function(t)
@@ -43,6 +45,7 @@ function Intro.triggerEndAnim()
     local flashDuration = 4
     Intro.revealActive = false
     Cats.Timers:pauseAll()
+    Intro.fixedPointer = Vector(love.mouse.getX(), love.mouse.getY())
 
     for _,cat in ipairs(Cats.list) do
         cat.speed = 0

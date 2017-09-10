@@ -212,6 +212,10 @@ function Cats.update(dt)
 end
 
 function Cats.manageMouseClick()
+    if Intro.fixedPointer then
+        return
+    end
+
     local spotCenter = Vector(love.mouse.getX(), love.mouse.getY())
 
     local firstclickcat = false
@@ -295,7 +299,7 @@ end
 
 
 function Cats.draw()
-    local spotCenter = Vector(love.mouse.getX(), love.mouse.getY())
+    local spotCenter = Intro.fixedPointer or Vector(love.mouse.getX(), love.mouse.getY())
     local stencilFunc = function()
         love.graphics.circle("fill", spotCenter.x, spotCenter.y, Intro.flashRadius, Intro.flashRadius/2)
     end
