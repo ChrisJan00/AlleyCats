@@ -26,12 +26,15 @@ local function repool()
 end
 
 function Cats.init()
+    initSprites()
+end
+
+function Cats.reset()
     Cats.count = 18
 
     Cats.Timers = Timers.newInstance()
     Cats.list = {}
     Cats.hash = SpatialHash(128, 128)
-    initSprites()
     Cats.selectedMask = math.random(#Cats.maskSheet.sprites)
 
     Cats.allMasked = true

@@ -1,6 +1,13 @@
 Intro = Intro or {}
 
 function Intro.init()
+    Intro.revealBg = love.graphics.newImage("img/bg_find_overlay.png")
+    Intro.canvas = love.graphics.newCanvas(screenSize.x, screenSize.y)
+end
+
+function Intro.reset()
+    love.math.setRandomSeed( os.time() )
+
     Intro.flashRadius = screenSize.x
     Intro.startRadius = screenSize.x
     Intro.endRadius = 192
@@ -31,10 +38,6 @@ function Intro.init()
             Intro.revealActive = true
         end)
         :start()
-
-
-    Intro.revealBg = love.graphics.newImage("img/bg_find_overlay.png")
-    Intro.canvas = love.graphics.newCanvas(screenSize.x, screenSize.y)
 end
 
 function Intro.update(dt)
@@ -56,7 +59,7 @@ function Intro.triggerEndAnim()
             Intro.flashRadius = (Intro.startRadius - Intro.endRadius) * t / flashDuration + Intro.endRadius
             end)
         :andThen(function()
-            init()
+            reset()
         end)
         :start()
 end
@@ -66,6 +69,7 @@ function Intro.draw()
         local pointer = Vector(love.mouse.getX(), love.mouse.getY())
 
         love.graphics.setCanvas(Intro.canvas)
+            love.graphics.clear()
             love.graphics.setColor(255,255,255)
             love.graphics.draw(Intro.revealBg)
 

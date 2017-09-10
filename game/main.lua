@@ -1,14 +1,6 @@
 require 'utils/livecode'
 
 function love.load()
-    init()
-end
-
-function love.livereload()
-    init()
-end
-
-function init()
     love.filesystem.load("utils/vector.lua")()
     love.filesystem.load("utils/box.lua")()
     love.filesystem.load("utils/bresen.lua")()
@@ -24,10 +16,22 @@ function init()
         love.window.setMode(screenSize.x, screenSize.y)
     end
 
-    Timers.cancelAll()
     Cats.init()
     Bg.init()
     Intro.init()
+
+    reset()
+end
+
+function love.livereload()
+    reset()
+end
+
+
+function reset()
+    Cats.reset()
+    Bg.reset()
+    Intro.reset()
 end
 
 function love.draw()
@@ -37,7 +41,6 @@ function love.draw()
 end
 
 function love.update(dt)
-    Timers.update(dt)
     Intro.update(dt)
     Cats.update(dt)
 end
