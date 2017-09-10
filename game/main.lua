@@ -1,5 +1,3 @@
-require 'utils/livecode'
-
 function love.load()
     love.filesystem.load("utils/vector.lua")()
     love.filesystem.load("utils/box.lua")()
@@ -22,11 +20,6 @@ function love.load()
 
     reset()
 end
-
-function love.livereload()
-    reset()
-end
-
 
 function reset()
     Cats.reset()
