@@ -14,6 +14,8 @@ function love.load()
         love.window.setMode(screenSize.x, screenSize.y)
     end
 
+    love.window.setTitle("Alley Cats")
+
     Cats.init()
     Bg.init()
     Intro.init()
